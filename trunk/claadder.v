@@ -49,15 +49,31 @@ module cla4(out, cout, in1, in2, c0);
    
 endmodule // cla4
 
-module adder16(out, cout, in1, in2, as);
+/**           ___           ___           ___           ___ 
+ *      _    |   |    _    |   |    _    |   |    _    |   |
+ *     | |   | C |   | |   | C |   | |   | C |   | |   | C |
+ * --->| |-->| L |-->| |-->| L |-->| |-->| L |-->| |-->| L |-->
+ *     |_|   | A |   |_|   | A |   |_|   | A |   |_|   | A |
+ *     ISB   |___|   ISB   |___|   ISB   |___|   ISB   |___|
+ */
+module adder16(out, cout, in1, in2, as, clk);
    output [15:0] out;
    output 	 cout;
    input [15:0]  in1, in2;
    input 	 as;
-
+   input 	 clk;
+   
    wire 	 c4, c8, c12;
    wire [15:0] 	 in2m;
-
+   wire 	 cout0, cout1, cout2;
+   wire [3:0] 	 out0, out1, out2;
+   
+   // Inter State Buffers
+   reg [32:0] 	 ISB1;
+   reg [28:0] 	 ISB2;
+   reg [24:0] 	 ISB3;
+   reg [20:0] 	 ISB4;
+   
    xor(in2m[0], in2[0], as);
    xor(in2m[1], in2[1], as);
    xor(in2m[2], in2[2], as);
@@ -75,9 +91,34 @@ module adder16(out, cout, in1, in2, as);
    xor(in2m[14], in2[14], as);
    xor(in2m[15], in2[15], as);
    
-   cla4 CLA0(out[3:0], c4, in1[3:0], in2m[3:0], as);
-   cla4 CLA1(out[7:4], c8, in1[7:4], in2m[7:4], c4);
-   cla4 CLA2(out[11:8], c12, in1[11:8], in2m[11:8], c8);
-   cla4 CLA3(out[15:12], cout, in1[15:12], in2m[15:12], c12);
-
+   cla4 CLA0(out0, cout0, ISB1[3:0], ISB1[19:16], ISB1[32]);
+   cla4 CLA1(out1, cout1, ISB2[3:0], ISB2[15:12], ISB2[28]);
+   cla4 CLA2(out2, cout2, ISB3[3:0], ISB3[11:8], ISB3[24]);
+   cla4 CLA3(out[15:12], cout, ISB4[3:0], ISB4[7:4], ISB4[20]);
+   assign out[11:0] = ISB4[19:8];
+   
+   always @(posedge clk)
+     begin
+	ISB4[3:0] = ISB3[7:4];
+	ISB4[7:4] = ISB3[15:12];
+	ISB4[15:8] = ISB3[23:16];
+	ISB4[19:16] = out2;
+	ISB4[20] = cout2;
+	
+	ISB3[7:0] = ISB2[11:4];
+	ISB3[15:8] = ISB2[23:16];
+	ISB3[19:16] = ISB2[27:24];
+	ISB3[23:20] = out1;
+	ISB3[24] = cout1;
+	
+	ISB2[11:0] = ISB1[15:4];
+	ISB2[23:12] = ISB1[31:20];
+	ISB2[27:24] = out0;
+	ISB2[28] = cout0;
+	
+	ISB1[15:0] = in1;
+	ISB1[31:16] = in2m;
+	ISB1[32] = as;
+     end
+   
 endmodule // adder16
